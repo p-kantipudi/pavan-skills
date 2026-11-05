@@ -1,0 +1,73 @@
+---
+name: skill-creator
+description: Create, edit, review, or improve agent skills and their SKILL.md files. Use when turning a workflow into a skill, fixing skill structure, testing skill behavior, comparing versions, or improving when a skill triggers. Routes to the pinned OpenAI creator for structure and the Anthropic creator for evaluation. Supports work in Pi, Claude, and Codex without assuming their tools are interchangeable. Not for subagents or their permissions; that is agent-creator.
+---
+
+# Skill Creator
+
+## Asking
+
+When you need a decision from Pavan, ask through the `question` tool, not prose. One call
+carries the whole round. The recommended option goes first, and its description carries the
+why. Do not add a "type your own answer" option: the tool adds it. A decision with one
+plausible answer is not a question, so decide it and say why. Where this skill defines its
+own review or answer format, that format wins. If the host has no question tool, use
+`❓ **Q1 - <title>**: ...` and `➡️ <answer and why>` in the same place.
+
+Vendored copies of both upstream creators supply the detail; this file selects the workflow and does not merge their instructions.
+
+```mermaid
+flowchart TD
+    A[Define task and target hosts] --> B{Requested work}
+    B -->|Create or edit| C[Codex: structure and resources]
+    C --> D[Validate and run a basic check]
+    D --> E[Claude evaluation if needed]
+    B -->|Evaluate or compare| E
+    B -->|Tune triggering| F[Check target-host runner]
+    E --> G[Report evidence and limits]
+    F --> G
+```
+
+## Resolve the sources
+
+Paths below are relative to this file's directory, not the terminal's working directory. Resolve them to absolute paths before running commands.
+
+| Source | Skill directory | Read for |
+| --- | --- | --- |
+| Codex | `vendor/codex/` | Structure, resource planning, scaffolding, validation, Codex UI metadata |
+| Claude | `vendor/claude/` | Test prompts, baseline comparisons, human review, improvement, trigger evaluation |
+
+Read `CREATOR.md` in the selected directory, starting with the sections named below. Do not load both by default. Resolve a vendored file's scripts and references from its own directory. Keep outputs outside `vendor/`.
+
+Both creators are bundled inside this skill. For prose, use the `pavan-voice` skill if it is installed. The vendored entry files are named `CREATOR.md` because OpenCode discovers nested `SKILL.md` files as separate skills. Keep only this wrapper named `SKILL.md`.
+
+`vendor/` holds pinned upstream copies. `vendor/PROVENANCE.md` records the source repositories, commits, dates, and licenses. Do not edit the vendored files, and keep the pinned versions unchanged during a comparison. To refresh from upstream, re-copy explicitly with the user's approval, rename the new `SKILL.md` to `CREATOR.md`, and record the new commit. Never update upstream during normal skill creation.
+
+## Select the work
+
+1. Read the target skill and its repository rules before editing. Recover intent from the conversation first. Ask only for missing decisions: purpose, trigger boundaries, expected output, and target hosts. The current host supplies tools; the target hosts determine metadata and trigger tests. Choose the route by the requested work, not by which host is running this session.
+2. For a new skill or structural changes, use Codex's **Core Principles** and **Skill Creation Process**. Keep instructions short and put detailed material in linked resources. For prose-producing skills, follow the `pavan-voice` skill and refer to it by name in the generated skill, not by a relative path: uploaded skills in the Claude app cannot see each other's folders.
+3. For a new skill with Codex among its targets, including shared Pi/Codex skills, use Codex's `scripts/init_skill.py`. Read `vendor/codex/references/openai_yaml.md` before generating UI metadata. If Codex is not a target, write the minimal directory directly: the initializer always creates `agents/openai.yaml`. Preserve existing skill names, metadata, and useful resources; do not reinitialize an existing skill.
+4. For behavioral changes, use Claude's **Capture Intent**, **Test Cases**, and **Improving the skill**. Agree on realistic examples and checks. Use a basic execution check for small changes; use the full comparison loop when requested or when the behavior needs stronger proof.
+5. To grade yes-or-no expectations, prefer Jev over an LLM grader: follow `../jev/references/eval-grading.md`, and send only the unsure middle to the Claude grader.
+6. For an evaluation-only or comparison request, go directly to Claude's **Running and evaluating test cases**, its relevant `agents/` instructions, and `vendor/claude/references/schemas.md`. Skip creation and scaffolding. Leave the supplied skills unchanged; write test artifacts in the workspace and report findings without starting upstream's rewrite loop. Use the same prompts and host/model settings for both versions. Compare a new skill against no skill; compare an edit against a snapshot taken before editing. Do not call an inline self-review an independent benchmark.
+7. For trigger tuning, use Claude's **Description Optimization** only after checking the runner and target host. Its scripts use `claude -p`; they do not measure Pi or Codex triggering. On another host, test selection there or report it as unverified. Do not pass a non-Claude model ID to the Claude runner.
+
+## Apply local rules before upstream mechanics
+
+This wrapper selects which upstream steps apply. It does not override system instructions, user decisions, repository rules, or tool permissions.
+
+- Keep `vendor/` read-only. Change the target skill, not the creators. Preserve the vendored licenses and provenance.
+- Use the current host's available tools and delegation rules. Do not invent subagent APIs or launch an evaluation swarm because upstream says to. If independent runs are unavailable, do a clearly labeled inline check without claiming a baseline advantage.
+- Put evaluation artifacts under `~/.agents/skill-workspace/<repo>/`, outside every discovered skill source, grouped by target skill and iteration. For this repository, use `~/.agents/skill-workspace/pavan-skills/`. OpenCode scans nested `SKILL.md` files even in ignored dot-directories; a snapshot inside a skill source can replace the live skill. Record the host/model, upstream commit IDs, and check outputs there. Inspect the checked-out scripts before using them; upstream instructions and schemas can differ.
+- Use Claude's review viewer with `--static` when a review artifact is needed. Do not start a server for the user. Collect actual feedback before attributing a revision to human review.
+- Report only measured timing and token values. Mark unavailable metrics as unmeasured; never insert zero to make a benchmark look complete.
+- Validate with this repository's checker first: `python -m skillcheck`. Before you hand the change over, run `./scripts/check.sh` (rules plus every test suite) and `pre-commit run --all-files`. It is the authority for skills here, and it accepts fields this repo uses, such as `version` and `disable-model-invocation`. Use Codex's `scripts/quick_validate.py` only when the output must match the vendor's shape: its frontmatter allowlist is narrower, so it rejects those fields. Report that limit; do not change the vendored validator.
+
+## Verify and finish
+
+Run the target skill's existing tests and the smallest realistic task that exercises the changed behavior. Check resource paths from the target skill directory. A valid frontmatter check does not prove the skill helps.
+
+Report changed files, checks run, evidence, and remaining limits. Update the repository handoff if it exists. Leave commits to the user.
+
+For this wrapper's own changes, follow the same process: keep a pre-edit snapshot, review routing with Codex's structure guidance and Claude's improvement guidance, run representative routing checks, then revise once. Stop after that bounded pass unless another iteration is requested. Never delegate back to this wrapper recursively.

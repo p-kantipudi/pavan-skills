@@ -1,0 +1,239 @@
+# bard — one-time Obsidian setup assets
+
+Scaffolding written once during `/bard bootstrap`. Create `Done Archive.md` from its
+template even when it has no entries, so the board link resolves. After that bard
+maintains the root `Todo.md` board per [todo-board.md](todo-board.md); it does not
+rewrite these setup assets.
+
+> Verified against the live vault: `bases: true`, `properties: true`, `sync: true`,
+> wikilinks default, no Dataview (Bases only). Community plugins in use since then: Tasks,
+> Iconize, Admonition, Charts (checked 2026-10-28); bard depends on none of them.
+
+## Contents
+
+- 1. `Bard.base`
+- 2. Topic Hub note template
+- 2b. Root TODO board template
+- 2c. Done Archive template
+- 3. Graph color groups
+
+---
+
+## 1. `Bard.base`
+
+Write to `<vault>/Bard/Bard.base`. Bases is a core plugin; any teammate opens it
+with zero setup. Two views: the dashboard, and the health view that auto-detects
+orphans / unreviewed notes.
+
+```yaml
+filters:
+  and:
+    - 'file.inFolder("Bard")'
+    - 'file.ext == "md"'
+    - 'type != "hub"'
+    - 'type != "board"'
+views:
+  - type: table
+    name: Dashboard
+    groupBy:
+      property: type
+      direction: ASC
+    order:
+      - file.name
+      - type
+      - up
+      - timestamp
+  - type: table
+    name: Health (unreviewed / orphans)
+    filters:
+      and:
+        - 'file.hasTag("bard/unreviewed")'
+    order:
+      - file.name
+      - type
+      - tags
+```
+
+> Syntax verified against obsidian.md/help/bases/syntax (2026-06):
+> - Folder filter is the function `file.inFolder("Bard")`, not `file.folder ==`.
+> - Grouping is `groupBy: {property, direction}` (an object), not `group_by:` (string).
+> - There is no separate row-`sort:` key in the documented schema — `order` lists
+>   columns; sort rows in-GUI by clicking a column header.
+> - **Hubs (`type: hub`) and board notes inside `Bard/` are excluded base-wide** so
+>   they don't false-positive as orphans (neither carries an `up`).
+> - The root `<vault>/Todo.md` is outside `file.inFolder("Bard")`, so it is already
+>   excluded and `Bard.base` needs no filter change.
+> - **The orphan signal is the `bard/unreviewed` tag**, tested with the documented
+>   `file.hasTag("bard/unreviewed")`. A no-hub note OMITS `up` and is always tagged
+>   `bard/unreviewed`, so the tag arm catches it (empty/null `up` testing isn't in
+>   the docs, so we don't rely on it).
+>
+> Still confirm the views render in-app — the Bases parser is the final judge.
+
+---
+
+## 2. Topic Hub note template
+
+One per approved hub. Filename = hub name verbatim (e.g. `Bard/AWS.md`). Hubs are
+entry points, not essays — keep them minimal. Members appear automatically:
+
+- in the hub's **Backlinks pane** (every note with `up: "[[AWS]]"` shows there,
+  zero config), and
+- in `Bard.base` Dashboard (grouped by type).
+
+```markdown
+---
+type: hub
+title: AWS
+description: Hub — AWS work, decisions, and lessons.
+tags: [hub]
+---
+
+# AWS
+
+Entry point for AWS knowledge. Notes filed here set `up: "[[AWS]]"`; they appear in
+the **Backlinks** pane (right sidebar) and in **Bard.base**.
+
+%% Optional: embed a live members list (uncomment if desired).
+```base
+filters:
+  and:
+    - file.folder == "Bard"
+    - up == "[[AWS]]"
+views:
+  - type: table
+    name: Notes
+    order: [file.name, type, timestamp]
+```
+%%
+```
+
+Note: a hub itself has no `up` (it is the top of its spoke), which is why the
+`Bard.base` filter excludes `type == "hub"` base-wide — otherwise every hub would
+read as a false orphan.
+
+---
+
+## 2b. Root TODO board (`Todo.md`) template
+
+Write once to `<vault>/Todo.md`, the root of the vault. The exact filename is `Todo.md`
+(capital T only), not `TODO.md`. This is Pavan's file: it gets **no frontmatter**, and
+bard must not add YAML to it. The `Bard.base` block above already uses
+`file.inFolder("Bard")`; that filter excludes a root-level `<vault>/Todo.md`, so
+`Bard.base` needs no filter change.
+
+The template only. Ownership split, line formats, priority, horizon derivation and
+roll-over rules all live in [todo-board.md](todo-board.md).
+
+```markdown
+<!-- BARD:START — bard owns everything below this line. Pavan owns everything above. -->
+
+# BARD List
+
+_Seeded by `/bard` from swept sessions. Anything someone waits on stays here, even past 12 open / 5 this week; 🔭 Eventually holds up to 10 things to bump up when you have time; the rest lives in [[Backlog]]. Sorted by priority, then topic. Pavan curates, bard is the scribe. The priority emoji at line end is Obsidian Tasks syntax._
+
+## Open
+
+### 🔥 This week
+- [ ] 📊 Send Tyler the alerting done message [[Grafana alerting rollout closed with Tyler's sign-off]] `(01a025e2)` ⏫
+- [ ] 🔐 Rotate the Snowflake SCIM token [[Snowflake SCIM token expires silently]] `(8bf834c5)` 🔺
+
+### 📅 This month
+- [ ] 🏛️ Fix the 5 overdue EA milestones [[EA Projects board audit]] `(da41d7ea)` 🔼
+
+### ⏳ Waiting on others
+- [ ] ☁️ Bucket-policy owner repoints aws:SourceVpce [[S3 VPC endpoint policy pin]] `(aa2f6ad0)` 🔼
+
+## Done
+
+_Last ~4 weeks. Older rolls to [[Done Archive]]._
+
+- [x] 🏛️ Published the 08-19 AAB recap [[AAB recap 2026-08-19]] `(da41d7ea)` ⏫ ✅ 2026-08-21
+
+## Legend
+
+_Topic:_ ☁️ AWS · ❄️ Snowflake · 🏗️ Terraform · 📊 Grafana · 🔐 Security · 🏛️ EA & docs · 🎫 Azure DevOps · 🐙 GitHub · 🧪 Testing · 🤖 AI & agents · 👥 People · 💰 Cost · 🗄️ Databases · 📦 Other
+_Priority:_ 🔺 deadline ≤7d, secret, prod, legal · ⏫ someone waits on you, or an event · 🔼 real work, no deadline · 🔽 hygiene · ⏬ someday
+_Line:_ `- [ ] <topic> <next action> [[Bard note]] (session id) <priority>` — click the note for context, `claude --resume <id>` for the raw session. Task-lane lines carry their source instead: `(ado:N)`, `(pr:repo#N)`, `(planner)`, `(todo)`, `(todoist)`, `(teams:date)`, `(mail:date)`. Overflow lives in [[Backlog]].
+```
+
+Optional priority-sorted view for the root board:
+
+```tasks
+not done
+path includes Todo.md
+sort by priority
+```
+
+
+---
+
+## 2c. Done Archive (`Done Archive.md`) template
+
+Write rollover entries to `<vault>/Bard/Done Archive.md`. This is a board file inside
+`Bard/`, not a knowledge note. Use frontmatter `type: board`. The verified `Bard.base`
+filter includes `file.inFolder("Bard")` and excludes `type == "board"`, so the archive
+stays out of the base by type. The folder filter excludes the root `<vault>/Todo.md`, not
+the archive.
+
+Use `# Done Archive`, then `## YYYY-MM` sections. The section ordering and line format
+are in [todo-board.md](todo-board.md).
+
+```markdown
+---
+type: board
+---
+
+# Done Archive
+
+## 2026-08
+
+- [x] 🏛️ Published the 08-19 AAB recap `(da41d7ea)` ⏫ ✅ 2026-08-21
+```
+
+Roll-over and never-delete rules are in [todo-board.md](todo-board.md).
+
+---
+
+## 3. Graph color groups (one-time, manual)
+
+bard NEVER writes `.obsidian/graph.json`. Apply once via **Graph view → settings
+(gear) → Groups**. Order matters (first match wins) — put the unreviewed group at
+the TOP so un-integrated notes light up:
+
+| Order | Query | Color | Purpose |
+|-------|-------|-------|---------|
+| 1 (top) | `tag:#bard/unreviewed` | bright red/orange | notes with no fitting hub — triage or drop |
+| 2 | `tag:#bard/new` | yellow | freshly captured, not yet reviewed |
+| 3+ | `tag:#topic/aws`, `tag:#topic/terraform`, … | per topic | cluster by subject |
+
+`showTags` is already `false` in `graph.json` (good — keeps tag nodes out of the
+graph). Treat the global graph as a **health check** (spot orphans / clusters),
+not navigation; navigation is search + `Bard.base` + backlinks.
+
+Equivalent `colorGroups` block if editing `graph.json` by hand (Pavan's call, not
+bard's):
+
+```json
+"colorGroups": [
+  { "query": "tag:#bard/unreviewed", "color": { "a": 1, "rgb": 15695415 } },
+  { "query": "tag:#bard/new",        "color": { "a": 1, "rgb": 15779635 } }
+]
+```
+
+
+## `Bard/Backlog.md` template
+
+```markdown
+---
+type: board
+---
+
+# Backlog
+
+_Uncapped overflow from [[Todo]]. Items that failed the intake gate (no consequence, not one next action, or no evidence note yet), fell off a cap, or aged out. bard promotes an item to the board when a later session shows it now passes the gate._
+
+- [ ] 🔐 Scope the org-wide Firemon decommission [[Firemon decommission scoping]] `(f1fd2740)` 🔽
+
+- [ ] 📦 Decide whether to build the vault health widget `(3c1e9a02)` ⏬
+```

@@ -1,0 +1,526 @@
+---
+name: bard
+description: >-
+  Mine AI-coding session history, scribe meeting transcript notes
+  (Scribe/Meetings/Transcripts), and the comms (Outlook mail, Teams, calendar) that
+  the archeologist surfaces during a sweep, and distill them into durable,
+  graph-native notes in the Obsidian vault at obsidian/Pavan/Bard, and copy authored
+  deliverable files into the Evidence vault (Evidence/). Use when the user
+  runs /bard, asks to capture/record what they've been working on into Obsidian,
+  to sweep recent sessions, meetings, or comms into the knowledge base, to bootstrap the bard
+  hubs, or to turn past decisions/lessons/patterns into notes, and to keep the
+  root-vault `Todo.md` board fed from Teams, mail, Planner, To Do, Todoist, ADO and
+  GitHub, with every judgment typed through Jev.
+  On-demand only. Reads sessions, meetings, and comms via the
+  archeologist agent; writes
+  OKF-envelope markdown notes. Never commits, never runs a server, never invents
+  provenance. Not for raw transcripts, that is scribe, or history questions, that
+  is archeologist.
+allowed-tools: Read, Write, Edit, Grep, Glob, Bash, Agent, mcp__exa__web_search_advanced_exa, mcp__jev__ask_jev, mcp__claude_ai_Microsoft_365__chat_message_search, mcp__claude_ai_Microsoft_365__outlook_email_search, mcp__claude_ai_Microsoft_365__get_me, mcp__microsoft-tasks__tasks_login_status, mcp__microsoft-tasks__tasks_assigned_to_me, mcp__claude_ai_Todoist__find-tasks-by-date, mcp__claude_ai_Azure_DevOps__wit_query, mcp__claude_ai_Azure_DevOps__wit_work_item
+---
+
+# bard — session history → Obsidian knowledge base
+
+## Asking
+
+When you need a decision from Pavan, ask through the `question` tool, not prose. One call
+carries the whole round. The recommended option goes first, and its description carries the
+why. Do not add a "type your own answer" option: the tool adds it. A decision with one
+plausible answer is not a question, so decide it and say why. Where this skill defines its
+own review or answer format, that format wins. If the host has no question tool, use
+`❓ **Q1 - <title>**: ...` and `➡️ <answer and why>` in the same place.
+
+bard is Pavan's personal knowledge base, fed from AI-coding session history. It is
+NOT a brag doc, a PR machine, or a provenance-citation system. It is a knowledge
+base. One concept per note, flat folder, navigated by search / tags / graph /
+`Bard.base`.
+
+Three frames govern it:
+- **OKF envelope** — every note is markdown + YAML frontmatter; `type` is the only
+  required field. (https://cloud.google.com/blog/products/data-analytics/how-the-open-knowledge-format-can-improve-data-sharing)
+- **PKM** — Seek-Sense-Share; flat + search-first; capture by half-life and
+  actively purge, do not hoard.
+- **Obsidian-native** — wikilinks, a frontmatter `up` hub backbone, one `Bard.base`.
+
+## Paths (verified)
+
+- Vault root: `$OBSIDIAN_VAULT`, or the vault the `obsidian` CLI reports. Never a literal path.
+- KB folder: `<vault>/Bard/` (flat)
+- State file: `<vault>/Bard/.bard-state.json`
+- Base + hubs: `<vault>/Bard/Bard.base`, `<vault>/Bard/<Topic Hub>.md`
+- Root TODO board: `<vault>/Todo.md` (the one living board both Pavan and bard edit — see **Root TODO board (`Todo.md`)** below; verified to exist)
+- Backlog: `<vault>/Bard/Backlog.md` (uncapped overflow; everything that fails the board's intake gate or falls off a cap — see **Root TODO board (`Todo.md`)** below)
+- Done archive: `<vault>/Bard/Done Archive.md` (completed items older than ~4 weeks; see **Root TODO board (`Todo.md`)** below)
+- Retired board pointer: `<vault>/Bard/TODO.md` (pointer stub only; never treat it as the board)
+- Evidence folder: `<vault>/Evidence/` (authored deliverables copied from repos/OneDrive — see **Evidence capture** below)
+
+## Hard constraints (never violate)
+
+- On-demand only. No scheduler, no autonomous run.
+- Never `git`, never run a server, never commit. (User does that outside.) The
+  read-only `obsidian sync:status` at the end of a sweep is allowed — it queries the
+  already-running Obsidian app, it does not start a server. `obsidian reload` is
+  BANNED: it hangs and wedges the CLI (see **Vault sync**).
+- Write ONLY inside `Bard/` and `Evidence/`, with the root vault `Todo.md` as the
+  named board exception. Never edit a hub or an existing knowledge note during a sweep
+  (note→hub direction means hubs never need rewriting). `Todo.md`,
+  `Bard/Backlog.md`, `Bard/Done Archive.md`, and `Evidence/README.md` are the only
+  existing files bard updates in place. `Bard/Done Archive.md` is inside the existing `Bard/` scope; no
+  additional write-scope exception is needed. On `Todo.md`, bard edits ONLY from the
+  `<!-- BARD:START -->` marker down: never edit, reorder, or read as task input anything
+  above it, and never add frontmatter to that file. One exception (Pavan, 2026-09-25):
+  lines above the marker that Pavan checked (`- [x]`) MOVE to `Bard/Done Archive.md`
+  on every sweep, verbatim; unchecked lines above the marker are never touched (see
+  [Board rules](references/todo-board.md) → Ownership split). The retired `Bard/TODO.md` is a
+  pointer stub only; bard never writes it. Knowledge notes and hubs stay
+  append-only/never-touched.
+- Never INVENT provenance: no sha/PR/commit/date guessed. You MAY RETRIEVE real,
+  verified provenance (see STEP 2b: `gh` for a real PR/commit/issue, the `ado` agent
+  for a real work item, Exa for a public doc) and cite it. If retrieval finds
+  nothing → "not available". Retrieve, never fabricate.
+- Never emit a link to a note that does not already exist (a dead `[[link]]`
+  silently creates a stray note). Link only to resolvable targets.
+- The confidential matter is **"an incident," never "a breach"** — never reframe, never
+  widen audience.
+
+---
+
+## Modes
+
+bard auto-detects mode from the argument and vault state.
+
+### `/bard bootstrap` (or any run when no hubs / no `Bard.base` exist yet)
+
+One-time scaffolding. The controlled hub taxonomy cannot be invented from nothing,
+so it is derived from real work and ratified by Pavan.
+
+1. Spawn the **archeologist** agent (read-only) to sweep every store over all history.
+   Its output contract is `../archeologist/SKILL.md` → **Phase 5: Structured Output**,
+   and the sweep scope is its **Coverage** rule:
+   "Enumerate sessions, meetings, and comms across ALL stores. For each, return store,
+   locator, session-start date, project/repo, and the durable topics worked on
+   (decisions, lessons, patterns). Summary and references first. Group by topic area.
+   I am building a topic taxonomy, not answering one question."
+2. Cluster the returned topics into ~8-12 candidate **Topic Hubs** (by TOPIC — e.g.
+   AWS, Terraform, Snowflake, hiring, security — NOT by note `type`).
+3. **Present the candidate hub list to Pavan and STOP for approval/edits.** Do not
+   proceed until ratified.
+4. On approval, scaffold:
+   - one minimal hub note per approved hub (see `references/obsidian-setup.md`),
+   - `Bard.base` (copy from `references/obsidian-setup.md`),
+   - the BARD List block in the root `<vault>/Todo.md` (template in
+     `references/obsidian-setup.md`). Use the flat `## Open` structure: a derived
+     horizon heading, then lines prefixed with their fixed-map topic emoji, sorted by
+     priority then topic. Use the short open and Done-line formats. Keep only the last ~4 weeks
+     in `## Done`; roll older items to `<vault>/Bard/Done Archive.md`, never delete
+     them. If `<!-- BARD:START -->` is already present, leave the block alone;
+     otherwise append the whole block at the end of the file,
+   - create `<vault>/Bard/Done Archive.md` from the archive template if it is absent,
+     so the `[[Done Archive]]` board link resolves,
+   - leave `.bard-state.json` absent; the first `scripts/state.py record` creates it.
+5. Tell Pavan to apply the one-time **graph color groups** (documented in
+   `references/obsidian-setup.md`) — bard never writes `.obsidian/graph.json`.
+
+### `/bard` (normal incremental sweep — the default)
+
+1. Read `Bard/.bard-state.json`. If absent or `watermark` is null → this is a first
+   sweep; if no hubs exist, run **bootstrap** first.
+2. Gather context the generation prompt needs:
+   - `existing_notes` — for every `*.md` in `Bard/`: title, `type`, `tags`,
+     `aliases`, path. (Glob + read frontmatter.)
+   - `existing_tags` — the set of all tags already used in `Bard/`.
+   - `hubs` — the titles of the approved Topic Hub notes.
+3. **Discover via the archeologist, then read raw.** Two parts — keep them separate,
+   because the quote rule (see **PROVENANCE**) needs VERBATIM content, and the
+   archeologist returns a *summarized* briefing (distilling a distillation would break
+   the quote rule).
+   - **Discover — one archeologist sweep, all stores.** Spawn the **archeologist** agent
+     (read-only) with the window `watermark` → now. It sweeps every store by its own
+     **Coverage** rule and answers with summary and references first (its **Phase 5**
+     contract). Treat its **summary as a lead, never as quotable text**; its
+     **references are the payload** the next step reads: store, locator, session-start.
+     This is the lane that reaches
+     mail, Teams, calendar, tenant SharePoint, and GitHub activity — stores the local
+     indexes below cannot see. An unavailable store in the briefing is missing data, not
+     empty data: name it in the sweep report, never let it pass silently.
+
+     **Run it on every sweep, short windows included.** On 2026-10-14 two back-to-back
+     sweeps of 30-40 minutes skipped it and searched Teams and mail directly. The re-run
+     over that window found a live P1 batch incident in a channel, three risk-register
+     to-dos assigned to Pavan in a SharePoint doc, and two chat commitments — none of
+     them visible to a `recipient` search.
+
+     **Demand the coverage ledger, and check it before you trust the briefing.** The
+     archeologist owes one line per store — what it ran and how many hits (its
+     **Coverage** rule). No ledger, or a store missing from it, means that lane was not
+     swept: send the agent back or sweep it yourself. "All stores reachable" is a
+     statement about the connection, not about the search.
+
+     **A zero from a comms store is a coverage failure until proven otherwise.** Teams,
+     mail and calendar are never actually silent across a working day. A window with no
+     working day in it (a weekend or holiday only) is exempt. Verified
+     2026-09-18: a sweep returned zero Teams items, the lane was accepted as quiet, and
+     the week's biggest item — a production outage being worked in a channel — never
+     reached the notes or the board. If the ledger shows 0 for Teams or mail, run
+     targeted `chat_message_search` / `outlook_email_search` queries directly on this
+     window before you accept it: the topics already on the board, the people who owe
+     Pavan something, and the systems that broke. Cheap, and it is the lane you cannot
+     reconstruct later.
+
+     Comms mostly dies at the half-life filter (STEP 1) — expect to drop standups, 1:1s,
+     and routine threads; what survives is usually a commitment ("I'll send X by
+     Friday"), which is a board candidate, not a knowledge note. That is a reason to
+     filter hard, never a reason to skip the search.
+   - **Also scan the time indexes — they are the cursor.** The briefing is a
+     summarizer's view and cannot be trusted to enumerate every session start. Scan
+     these and take the union with the briefing. The scan is a filename glob: cheap,
+     exact, and the only ground truth for the watermark. These carry reliable
+     session-start times. **A start time picks new sessions, not active ones:** a session
+     that started before `watermark` and kept going is missed by a start filter, and with
+     daily sweeps that is the normal case. So for Pi and Cortex, also take every session
+     file whose mtime is newer than `watermark` (these are local, append-only files, not
+     vault-synced, so mtime is safe here), then keep only the messages newer than
+     `watermark` (see the per-message pitfall below). opencode already selects by message
+     time; Claude Code's `history.jsonl` has one line per prompt, so it needs nothing extra.
+     **Read [Session stores](references/session-stores.md) for each store's path, start
+     field, and pitfalls** (Claude Code, Cortex, Pi, opencode, scribe meeting notes). scribe
+     notes use the `scribe_seen` set as their cursor, never `date` or mtime.
+   - **Read raw every candidate you intend to distil**, from the locator the briefing
+     gave you (Read/Bash on the `.jsonl` / SQLite, per the patterns in the archeologist
+     skill), so STEP 1–5 operate on real text and quotes are verbatim. When a locator
+     points at a store this session cannot read raw (M365 mail or Teams), the briefing's
+     verbatim excerpt is your only source — quote exactly that and never widen it into
+     something it does not say. Two pitfalls: sessions can span the watermark — filter
+     entries by per-message timestamps (CC/Pi `.timestamp`, Cortex `user_sent_time`),
+     don't trust session-start alone; and a sweep will rediscover its own prior bard
+     sessions (first user message = this skill's text) — skip them as mechanics, and
+     expect Cortex sidecar files (`*.history.jsonl`) to be JSONL, one object per line,
+     not a JSON array.
+   - **Task lane — what is asked of Pavan (since 2026-10-14).** The archeologist searches by
+     topic, so it finds knowledge and misses a plain "can you get me X" with no topic word.
+     Run this lane in the main thread on every sweep. **Read
+     [Task lane](references/task-lane.md) first**: it holds the tested calls, the ADO query,
+     and the code filters. Sources: Teams chats and mail sent to Pavan (window from
+     `watermark`), mail with no reply from him, and the open items assigned to him now in
+     Planner, To Do, Todoist, ADO, and GitHub review requests (snapshot, no watermark).
+     Add each source to the coverage ledger. Every survivor of the code filters goes through
+     Set A (is it an ask?) and Set R (did Pavan already answer it?), then Set T; it never becomes a knowledge note on its own.
+   - **AI attention pass** — before distillation, explicitly scan every candidate for
+     durable AI work even when AI was not the session's main topic: model or tool
+     choices, agents, skills, prompts, evals, context or memory, governance, security,
+     cost, adoption, and measured outcomes or failures. Do not rely only on the session
+     title or repo name to surface it.
+4. Run the **Generation prompt** (below) over the raw material. Its STEP 1 keep/drop and
+   STEP 4 hub pick are typed calls (Set K in **Typed gates**).
+   **Parallel distill lanes (a busy window).** You may split the raw reading across
+   background agents, one store per lane, each staging notes in the scratchpad for you to
+   validate and copy (never straight into `Bard/`). Two rules from 2026-10-14: compute every
+   cursor in code and paste the value into the brief (a hand-typed epoch sent one lane
+   three days into the future), and require each lane's final report to list every
+   `Jev unsure (0.xx) → model: …` line. You cannot get that log afterwards: resuming three
+   finished lanes to ask for it failed on the API safety filter. The step 10 report needs
+   every line.
+5. Write the resulting notes into `Bard/` (respecting dedupe — update or skip,
+   never duplicate; never touch hubs/existing notes).
+6. **Update the root TODO board** (`<vault>/Todo.md`). **Read
+   [Board rules](references/todo-board.md) first** — it owns every board rule and every
+   rule there is binding. Use one Edit pass over the existing file. Preserve everything
+   above
+   `<!-- BARD:START -->`, except Pavan's checked `- [x]` lines there, which move verbatim
+   to `Bard/Done Archive.md` (Ownership split exception); if the marker is absent, append the whole BARD List block at
+   the END of the file. Dedupe against every existing board line, open and done, and
+   against `Bard/Backlog.md` (Set D for text-only matches). Run every candidate through the
+   intake gate (Set T answers consequence and one next action; "Bard note exists" is a file
+   check); failures go to the backlog, not the board. Priority and owner come from Set T. Derive
+   each board item's horizon from those rules, prefix it with its fixed-map topic
+   emoji, and sort it by priority then topic inside the horizon (no topic sub-headings). Every line carries the
+   `[[Bard note]]` evidence wikilink and the session id before the priority emoji. Age
+   out items with no evidence for 30 days, then enforce the caps (5 in `🔥 This week`,
+   12 open total) by demoting to the backlog — but never demote an item someone waits on
+   (Board rules → Caps). Promote backlog items that now pass the gate. Fill `🔭 Eventually`
+   and, when `🔥 This week` has fewer than 5 lines, bump its top line into `📅 This month`
+   (Board rules → 🔭 Eventually). Re-check every open item against the swept sessions;
+   auto-complete items whose `done` answer is 0.90 or more, or that the model confirms after an unsure answer, keep the topic emoji, move it to the top of
+   flat `## Done`, and append the ISO date. Roll `## Done` entries older than ~4 weeks
+   to `<vault>/Bard/Done Archive.md`; move them, never delete them. This is one of the
+   existing files bard edits in place.
+7. **Capture evidence files** — when a swept session or the sweep's file scan surfaces
+   authored deliverables not yet in `Evidence/`, copy them per **Evidence capture**
+   below, loading its mechanics reference before copying. Update `Evidence/README.md`
+   to match. This is another existing file bard edits in place.
+8. **Update `.bard-state.json` with the script, not a heredoc.** One call per run:
+
+   ```
+   python3 scripts/state.py record <vault>/Bard/.bard-state.json \
+     --watermark <newest real session-start swept> \
+     --seen <scribe note path> [--seen ...]
+   ```
+
+   It sets `last_run` to now, adds the notes to `scribe_seen`, and refuses the two values
+   that silently re-sweep: a watermark older than the stored one, and a rounded day
+   boundary. The watermark must still be a **real session-start you actually swept**, taken
+   from the index scan or the newest timestamp the briefing observed, not a rounded value
+   the script happens to accept. It writes atomically and reads the file back, so the
+   `noclobber` trap that once left an old watermark in place cannot happen (2026-09-04).
+   `python3 scripts/state.py show <path>` prints the current state.
+9. **Sync the vault** — Obsidian watches the filesystem, so on-disk writes are picked
+   up on their own. Run ONLY `obsidian sync:status vault=Pavan` (see **Vault sync**
+   below) and report the status line. Do NOT run `obsidian reload`: it prints
+   `Reloading...` and never returns, and it leaves the CLI wedged so the `sync:status`
+   after it times out too (verified 2026-09-03 by scribe, again 2026-09-04 by bard).
+10. **Report**: per note `created | updated | skipped` + reason, plus any
+   `bard/unreviewed` flags raised (notes that found no fitting hub), a one-line
+   summary of TODO-board changes (N added by horizon and topic, M marked done, D demoted
+   to `Backlog.md` and why, P promoted from it, A aged out, R rolled over to
+   `Done Archive.md`, and the final open count against the 12/5 caps), the Jev number and band
+   for each board change plus every "Jev unsure" call, the task-lane coverage ledger (one line
+   per source), a line for evidence files copied (N added, and any PII
+   files deliberately excluded), and the vault sync status. Pavan reviews in Obsidian
+   via the `Bard.base` dashboard + health view.
+
+> **First real sweep — prove the pipe before trusting it.** The discover→read-raw
+> path (step 3) is the load-bearing untested assumption. On the very first run,
+> stop after pulling 1-2 sessions and confirm you have real, VERBATIM content in
+> the shape STEP 1 expects (not an archeologist paraphrase, not empty). Only then
+> distill the full batch.
+
+### `/bard full`
+
+Same as a sweep but ignores `watermark` and `scribe_seen` (re-walks all history). Dedupe against
+`existing_notes` prevents duplicates. Use sparingly.
+
+---
+
+## Generation prompt (the core)
+
+Run this per candidate item in the briefing, with `existing_notes`,
+`existing_tags`, and `hubs` in context.
+
+> **ROLE.** You are bard's knowledge distiller. Turn raw AI-coding session
+> excerpts into durable, reusable knowledge notes. This is **Sense-making**:
+> personalize, contextualize, extract the reusable insight — NOT a session log. A
+> note earns its place only if it will still teach Pavan something in six months.
+> **Voice: neutral reference.** Terse, scannable, factual — built to be looked up,
+> not read as narrative. Consistent across every note.
+
+### STEP 1 — SELECT (shortest half-life filter)
+
+KEEP only durable, reusable knowledge: **decision** (a choice + lasting why),
+**lesson** (what broke + what to do differently), **pattern** (a reusable
+technique), **artifact** (a tool/approach worth remembering), **impact** (an
+outcome that mattered). DROP ephemera: routine fixes, transient debugging, one-off
+lookups — anything where you cannot state in one line why it'll matter later
+(Hofmann's test). On the first sweep, when unsure, DROP. Easier to add later than
+to prune a graveyard. **Typed:** ask Set K `kind` (see **Typed gates**); `drop` drops it.
+
+**AI gets special attention.** Treat durable AI decisions, lessons, patterns,
+artifacts, and impact as high-value candidates. Look for model or tool choices,
+agents, skills, prompts, evals, context or memory, governance, security, cost,
+adoption, and measured outcomes or failures. AI relevance raises review priority;
+it does not override the half-life filter. DROP routine model use, generated
+boilerplate, and AI chatter with no reusable insight.
+
+### STEP 2 — DISTILL (knowledge, not log)
+
+One atomic concept per note; the title states the claim, written for future-Pavan
+with no context. Body sections — write only those with real content, drop the rest:
+`## What` / `## Why it mattered` / `## Alternatives rejected` / `## Impact` /
+`## Lesson` / `## Related`.
+
+### STEP 2b — ENRICH (optional; real, verified provenance only)
+
+When a candidate references something checkable, you MAY enrich the note with real
+external context — but only retrieve, never fabricate.
+- **GitHub** — if the session names a repo/PR/commit/issue, resolve it with `gh`
+  (`gh pr view`, `gh pr list`, `gh search prs`, `gh issue view`). Cite the real URL
+  in `resource` + body. If `gh` can't confirm it exists, write "not available" —
+  never guess a PR number or sha.
+- **ADO** — if the work ties to an Azure DevOps work item, spawn the `ado` agent
+  to fetch the real item; cite its id/URL. Don't invent ticket numbers.
+- **Exa** (`web_search_advanced_exa`) — for a PUBLIC concept/library/technique, you
+  may research for accurate context and cite the source URL.
+
+Enrichment is optional and additive — skip it when nothing checkable is referenced.
+It must never slow a sweep into a research project; a few targeted lookups per note
+at most.
+
+### STEP 3 — FORMAT (OKF envelope + Obsidian Properties)
+
+Flat lowercase keys, no spaces, one consistent type per key across every note.
+
+```yaml
+type: decision            # REQUIRED (OKF). decision|lesson|pattern|artifact|impact
+title: <short, specific claim>
+description: <one-line summary>
+up: "[[Topic Hub]]"       # quoted wikilink, one value, chosen from `hubs`. Orphan backbone.
+tags: [topic/x, bard/new] # coined freely BUT reuse-before-coin + convention. ~3-5 max.
+timestamp: <ISO 8601>     # session-START time (reliable). NEVER a null assistant-turn time.
+source: <session_id>      # optional breadcrumb.
+repo: <repo>              # when known.
+resource: ""              # OKF. A REAL verified URL from STEP 2b (PR/issue/ADO/doc). Omit if none.
+aliases: []               # reserved. Optional — variant spellings for resolution.
+```
+
+`resource` (OKF authoritative URL) is populated ONLY with a real URL verified in
+STEP 2b (a `gh`-confirmed PR/issue, an `ado` work item, an Exa-cited public doc).
+Never fabricate one; omit the key if enrichment found nothing. Body is markdown only.
+
+### STEP 4 — LINK (graph-native, resolvable-only)
+
+- **Internal = wikilinks, external = markdown.** `[[Canonical Title]]` or
+  `[[Canonical Title|natural text]]` for notes; `[text](https://…)` only for URLs.
+  Never a bare `[[Alias]]` (won't resolve/backlink) — resolve to canonical + use
+  the `|display` form.
+- **`up` is mandatory** and is the orphan backbone. Pick from `hubs`; note→hub only,
+  never edit a hub. **Typed:** Set K `hub` picks it. If no hub fits: **OMIT the `up` key entirely** (do not write an
+  empty string) AND add tag `bard/unreviewed` — that tag is the reliable no-hub
+  signal the `Bard.base` health view filters on. Never coin a new hub.
+- **Link only to targets that exist** (in `existing_notes` or `hubs`). A link to a
+  non-existent note is forbidden (it creates a stray). Mirrors never-invent-provenance.
+- **`## Related`**: 2-3 `[[Canonical|natural text]]` peer links to siblings sharing
+  a source/repo/entity/sequence. Resolvable-only.
+- **tags vs links**: tags = broad buckets/state for filtering; `up` + body wikilinks
+  = specific relationships. Never substitute one for the other.
+- **Tags — coin freely, disciplined.** Invent tags as fitting, but (1) **reuse
+  before coin**: if a tag in `existing_tags` fits, use it verbatim; (2)
+  **convention**: lowercase, singular, nested (`topic/x`, `bard/state`), no spaces.
+  `bard/new` and `bard/unreviewed` are reserved lifecycle tags.
+
+### STEP 5 — DEDUPE & WRITE
+
+- If a note covering the same concept/source already exists in `existing_notes`,
+  UPDATE it or SKIP — never create a near-duplicate. Surface which. Dedupe key:
+  `source` session_id + concept/title; a match on `source` is code, a title-only match is
+  Set D (see **Typed gates**).
+- Write only into `Bard/`. Never touch files outside it; never rewrite hubs or
+  existing notes.
+
+### PROVENANCE (hard)
+
+Quote real session content; do not paraphrase into something unsaid. The verbatim
+text comes from a raw read of the locator the briefing gave you, or — for a store
+this session cannot reach — from the briefing's verbatim excerpt. **A summary is never
+quotable.** Provenance
+not in the session and not confirmable via STEP 2b (`gh`/`ado`/Exa) → "not
+available," never invented. A `resource` URL must be one STEP 2b actually verified.
+
+### OUTPUT
+
+The set of note files (path + full content), plus a one-line report per note:
+`created | updated | skipped` + reason, plus any `bard/unreviewed` flags.
+
+---
+
+## Filename convention
+
+`Bard/<Title in Title Case>.md` — the title IS the wikilink target, so the filename
+must equal the canonical `title`. Sanitize illegal chars (`/`, `:`, `#`, `^`, `|`,
+`[`, `]`) to a space or dash. Hub notes use the hub name verbatim.
+
+## State file shape
+
+```json
+{
+  "last_run": "2026-06-29T14:30:00Z",
+  "watermark": "2026-06-28T09:12:00Z",
+  "scribe_seen": ["Scribe/Meetings/Transcripts/2026-06-28 0900 Architecture Advisory Board.md"]
+}
+```
+
+`scribe_seen` lists every scribe note bard already swept (vault-relative paths). Scribe notes
+do not move `watermark`; they have their own cursor because they arrive late.
+
+`watermark` keys off reliable **session-start** timestamps (never per-message
+assistant timestamps — ~50% are null in Cortex). Read at the start of a sweep to
+bound lookback; write the newest session-start swept after a successful run.
+
+## Typed gates — `ask_jev`
+
+Every judgment in a sweep is a typed Jev call, never prose (Pavan, 2026-10-14): ask or not,
+already answered, keep or drop and `type`, hub, gate, priority, owner, done, and same item.
+Why: the same evidence gets the same answer every sweep, and the unsure calls show as
+numbers. **Read [Typed gates](references/jev-gates.md) before the first call**: it owns the
+question sets (A, R, T, K, D), the bands, what stays a rule, and the no-Jev fallback.
+
+**Jev unsure → the model decides, always.** Any answer between the bands goes to you, the
+model running the sweep: read the full evidence, decide, and report `Jev unsure (0.xx) →
+model: <answer>`. Never take a default for an unsure call.
+
+Hard rule: Jev runs on OpenCode Zen, outside the company, so `state` is a redacted summary you
+write, never source text. No names, quotes, subjects, locators, ids, or customer data.
+
+## Root TODO board (`Todo.md`)
+
+`<vault>/Todo.md` is the root-vault operational board. The exact filename is `Todo.md`
+(capital T only), not `TODO.md`. It is Pavan's file, seeded from swept sessions. Pavan
+curates; bard is the scribe. It has no frontmatter and is not a knowledge note.
+
+**Read [Board rules](references/todo-board.md) before you touch it.** That file owns the
+ownership split, the intake gate and caps (12 open, 5 this week) with the `Backlog.md`
+overflow, the line formats with the mandatory `[[Bard note]]` evidence link and the parser
+constraint, the priority scale and spread check, the topic-emoji map, horizon derivation,
+ordering, aging and completion, roll-over to `Done Archive.md`, and the hand-edit rules. Every rule there is binding.
+
+## Evidence capture
+
+Alongside the knowledge sweep, copy **authored deliverable files** into `<vault>/Evidence/`
+when a swept session or the sweep's file scan surfaces them. This is Pavan's personal work
+record — the artifacts that back up the knowledge notes (decks, ADRs, reports, plans).
+
+### What qualifies (copy when it makes sense)
+
+Authored deliverables Pavan produced or co-authored, from local repos or OneDrive
+(Architecture - Documents and the OneDrive root). Copy ONLY when:
+- it's a **deliverable** (deck, ADR/SAD/SIP/RFC, report, plan/proposal, SOW, tech brief,
+  template), and
+- Pavan authored/co-authored it (swept session, git authorship, or file metadata shows
+  him as the creator), and
+- it's not already in `Evidence/` (dedupe by filename — copy = ADD only, never overwrite
+  an existing copy, never move/delete the source).
+
+### Confidentiality (hard rule, same as notes)
+
+- **Never copy consumer-PII datafiles** (loan documents, consumer-count datafiles,
+  candidate resumes, watchlist extracts, any file whose content is third-party personal
+  data) into the vault at all — record the work as a Bard note instead. This is a hard
+  line, not a judgment call: a personal-sync vault is not a place for other people's data.
+- Incident-related / internal-sensitive deliverables (incident briefings, security
+  incident summaries, PII access reviews, legal hold notices, exec-only updates) go into
+  `Evidence/Confidential/` and get flagged in `Evidence/README.md`. The confidential
+  matter is **"an incident," never "a breach"** — never reframe, never widen audience.
+
+Before copying a qualifying file, read
+[Evidence capture mechanics](references/evidence-capture.md) for the folder layout
+and README update. Load it only when copying deliverables, including those found
+during a normal sweep. This is required capture, not a separate opt-in mode.
+
+## Vault sync
+
+bard writes files straight to disk, outside the Obsidian app. Obsidian watches the
+filesystem, so it picks those writes up on its own; the only thing left is to confirm
+Obsidian Sync flushed them, via the `obsidian` CLI (installed at
+`/usr/local/bin/obsidian`; the vault is named `Pavan`):
+
+```bash
+obsidian sync:status vault=Pavan   # expect "status: synced"
+```
+
+- **Never run `obsidian reload`.** It prints `Reloading...` and never returns. Worse, it
+  wedges the CLI: a `sync:status` issued after it also times out, so the sweep ends with
+  no sync confirmation at all. Verified 2026-09-03 (scribe) and again 2026-09-04 (bard).
+  It is not needed — the filesystem watcher already indexes on-disk writes.
+- Wrap the call in a 20 s timeout (macOS has no `timeout` binary; use `python3 -c` with
+  `subprocess.run(..., timeout=20)`). A timeout means Obsidian is not running: say so
+  and skip sync, never try to launch it.
+- There is **no explicit "push now" command** — Obsidian Sync flushes automatically.
+  `sync:status` returning `synced` is the confirmation; if it shows pending/syncing,
+  report that rather than claiming it's done. `syncing` is not a failure: on 2026-10-14 it
+  read `syncing` for over 30 minutes while Pavan confirmed the vault was in sync (other
+  sessions keep writing to it). Report the line and ask Pavan to glance at the Sync icon;
+  never retry in a loop.
+- Never use `sync off` / `reload` / `restart` / destructive `sync:restore` in a sweep.
+  Only `sync:status` (read-only) is part of the flow.
+
+See [Board rules](references/todo-board.md) for the board's formats and decisions, and
+`references/obsidian-setup.md` for the one-time scaffolding: `Bard.base`, the hub-note
+template, the board and archive templates, and the graph-color-group setup.
